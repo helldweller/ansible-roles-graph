@@ -2,7 +2,8 @@
 
 import sys
 from argparse import ArgumentParser
-from os.path import join
+from os.path import join, basename
+
 import gv
 from glob import glob
 import yaml
@@ -23,29 +24,19 @@ def parse_args(args):
         'jpg'
         >>> config.roles_dirs
         ['roles/', '../other/roles']
-
-    Provides sane defaults:
-
-        >>> config = parse_args([])
-        >>> config.output
-        'ansible-roles.png'
-        >>> config.format
-        'png'
-        >>> config.roles_dirs
-        ['roles']
     """
     p = ArgumentParser(description='Generate a picture of ansible roles graph.')
 
     p.add_argument('roles_dirs',
                    metavar='ROLES_DIR',
                    type=str,
-                   nargs='*',
-                   default=['roles'],
+                   nargs='+',
+                   default='./roles/',
                    help='a directory containing ansible roles')
 
     p.add_argument('-o', '--output',
                    type=str,
-                   default='ansible-roles.png',
+                   default='./ansible-roles.png',
                    help='the output file')
 
     p.add_argument('-f', '--format',
@@ -71,14 +62,17 @@ class GraphBuilder:
 
 def parse_roles(roles_dirs, builder=GraphBuilder()):
     for roles_dir in roles_dirs:
+        print roles_dir
         for path in glob(join(roles_dir, '*/meta/main.yml')):
+            print path
             dependent_role = path.split('/')[-3]
 
             builder.add_role(dependent_role)
 
             with open(path, 'r') as f:
-                for dependency in yaml.load(f.read())['dependencies']:
-                    depended_role = dependency['role']
+                for dependency in yaml.safe_load(f.read())['dependencies']:
+                    print basename(dependency['role'])
+                    depended_role = basename(dependency['role'])
 
                     builder.add_role(depended_role)
                     builder.link_roles(dependent_role, depended_role)
